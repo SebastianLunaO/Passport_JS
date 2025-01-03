@@ -1,0 +1,17 @@
+{
+  "name": "passport",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "express": "^4.21.2",
+    "express-mysql-session": "^3.0.3",
+    "mysql2": "^3.12.0"
+  }
+}
