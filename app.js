@@ -2,10 +2,15 @@ import express from 'express'
 import mysql2 from 'mysql2/promise'
 import session from 'express-session'
 import MySQLSessionStoreImport from "express-mysql-session";
+import passport from 'passport';
+import localStrat from 'passport-local'
+import crypto from 'crypto'
+import z from 'zod'
+
 const password = process.env.PASSWORD_MYSQL
 const MySQLSessionStore = MySQLSessionStoreImport(session);
 
-
+const strategy = localStrat.Strategy
 /**
  * -------------- GENERAL SETUP ----------------
  */
@@ -20,6 +25,8 @@ var app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
+//_------------------------------ DAatbases----------------
 const optionsConnection = {
 	host: 'localhost',
 	port: 3306,
@@ -45,41 +52,40 @@ const connection = await mysql2.createConnection(optionsConnection)
 
 const result =  await connection.query("SELECT * FROM sessions_customs;");
 
-const rows = result[0];
-console.log(rows)
 
 const storeCon = new MySQLSessionStore(storeSessionOptions,connection)
 
-// /**
-//  * -------------- DATABASE ----------------
-//  */
+const User = z.object({
+	username: z.string(),
+	hash: z.string(),
+	salt: z.string()
+})
+
+const Userfind = async (usuario) => {
+	const result = await connection.query("SELECT usuarios(username) WHERE username = ?",usuario)
+}
 
 // /**
-//  * Connect to MongoDB Server using the connection string in the `.env` file.  To implement this, place the following
-//  * string into the `.env` file
-//  *
-//  * DB_STRING=mongodb://<user>:<password>@localhost:27017/database_name
+//  * -------------- Passport use ----------------
 //  */
+passport.use(new strategy(
+	function(username,password,cb){
+		const [usuario] = Userfind(username)
+		usuario.then((user)=>{
+			if (!user) { return cb(null, false) }
+                
+			// Function defined at bottom of app.js
+			const isValid = validPassword(password, user.hash, user.salt);
+			
+			if (isValid) {
+				return cb(null, user);
+			} else {
+				return cb(null, false);
+			}
+		})
+	}
+))
 
-// // Creates simple schema for a User.  The hash and salt are derived from the user's given password when they register
-// //var UserSchema = session.getSchema('newSchema');
-
-// // // Defines the model that we will use in the app
-// // mongoose.model("User", UserSchema);
-
-// /**
-//  * -------------- SESSION SETUP ----------------
-//  */
-
-// /**
-//  * The MongoStore is used to store session data.  We will learn more about this in the post.
-//  *
-//  * Note that the `connection` used for the MongoStore is the same connection that we are using above
-//  */
-// const sessionStore = new MongoStore({
-//   mongooseConnection: connection,
-//   collection: "sessions",
-// });
 
 // /**
 //  * See the documentation for all possible options - https://www.npmjs.com/package/express-session
@@ -101,6 +107,9 @@ const storeCon = new MySQLSessionStore(storeSessionOptions,connection)
      resave: false,
      saveUninitialized: true,
      store: storeCon,
+	 cookie: {
+		maxAge: 1000 * 60 * 60 * 24
+	 }
 
  })
  );
