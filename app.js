@@ -61,13 +61,14 @@ const User = z.object({
 	salt: z.string()
 })
 
-const Userfind = async (usuario) => {
-	const result = await connection.query("SELECT usuarios(username) WHERE username = ?",usuario)
+async function Userfind(usuario) {
+	const result = await connection.query("SELECT * FROM usuarios WHERE username = ?",usuario)
+	return result[0][0]
 }
 
 async function getById(id) {
 	const result = await connection.query("SELECT * FROM usuarios WHERE id = ?",id)
-	return result[0]
+	return result[0][0]
 }
 
 async function createUSER(username,hash,salt) {
@@ -86,25 +87,24 @@ async function createUSER(username,hash,salt) {
 // /**
 //  * -------------- Passport use ----------------
 //  */
-/*
+
+
+
 passport.use(new strategy(
-	function(username,password,cb){
-		const [usuario] = Userfind(username)
-		usuario.then((user)=>{
-			if (!user) { return cb(null, false) }
-                
-			// Function defined at bottom of app.js
-			const isValid = validPassword(password, user.hash, user.salt);
-			
-			if (isValid) {
-				return cb(null, user);
-			} else {
-				return cb(null, false);
-			}
-		})
-	}
-))
-*/
+	async (username, password, cb) => {
+				const respuesta = await Userfind(username)
+				if (!respuesta) { return cb(null, false) }
+				
+				// Function defined at bottom of app.js
+				const isValid = validPassword(password,respuesta.hash,respuesta.salt);
+
+				if (isValid) {
+					return cb(null, respuesta);
+				} else {
+					return cb(null, false);
+				}
+ }))
+
 
 // /**
 //  * See the documentation for all possible options - https://www.npmjs.com/package/express-session
@@ -120,7 +120,7 @@ passport.use(new strategy(
 //  * saveUninitialized: Similar to resave, when set true, this forces the session to be saved even if it is unitialized
 //  */
 
-/*
+
  app.use(
    session({
 	 key: 'cookie',
@@ -132,10 +132,10 @@ passport.use(new strategy(
 		maxAge: 1000 * 60 * 60 * 24
 	 }
  })
- ); */
+ ); 
 
- //app.use(passport.initialize());
- //app.use(passport.session());
+ app.use(passport.initialize());
+ app.use(passport.session());
  
  
  
@@ -186,13 +186,12 @@ passport.use(new strategy(
 	 const result = await createUSER(username,hash,salt)
  
 	try {
-		console.log(result[0])
+		console.log(result)
 	} catch (error) {
 		console.error(error)
 	}	
 	
-	res.status(201).send(result)
-	// res.redirect('/login');
+	res.redirect('/login');
  
  });
  
