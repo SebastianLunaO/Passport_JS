@@ -89,9 +89,11 @@ passport.use(new LocalStrategy(
  * This function is used in conjunction with the `passport.authenticate()` method.  See comments in
  * `passport.use()` above ^^ for explanation
  */
-passport.serializeUser(function(user, cb) {
-    cb(null, user.id);
+passport.serializeUser(function(user, done) {
+    done(null, user.id);
 });
+
+
 
 /**
  * This function is used in conjunction with the `app.use(passport.session())` middleware defined below.
@@ -149,6 +151,7 @@ app.use(session({
     cookie: {
         maxAge: 1000 * 60 * 60 * 24 // Equals 1 day (1 day * 24 hr/1 day * 60 min/1 hr * 60 sec/1 min * 1000 ms / 1 sec)
     }
+
 }));
 
 
@@ -204,9 +207,7 @@ app.get('/login', (req, res, next) => {
 });
 
 // Since we are using the passport.authenticate() method, we should be redirected no matter what 
-app.post('/login', passport.authenticate('local', { failureRedirect: '/login-failure', successRedirect: 'login-success' }), (err, req, res, next) => {
-    if (err) next(err);
-});
+app.post('/login', passport.authenticate('local', { failureRedirect: '/login-failure', successRedirect: '/login-success' }));
 
 // When you visit http://localhost:3000/register, you will see "Register Page"
 app.get('/register', (req, res, next) => {

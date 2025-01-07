@@ -67,14 +67,19 @@ async function Userfind(usuario) {
 }
 
 async function getById(id) {
+	try {
 	const result = await connection.query("SELECT * FROM usuarios WHERE id = ?",id)
+		
+	} catch (error) {
+		return error
+	}
 	return result[0][0]
 }
 
 async function createUSER(username,hash,salt) {
  try {
 	const [result] = await connection.query("INSERT INTO usuarios(username,hash,salt) VALUES (?,?,?)",[username,hash,salt]);
-	console.log(result)
+	
 	const id = result.insertId
 	return await getById(id)
  } catch (error) {
@@ -87,9 +92,6 @@ async function createUSER(username,hash,salt) {
 // /**
 //  * -------------- Passport use ----------------
 //  */
-
-
-
 passport.use(new strategy(
 	async (username, password, cb) => {
 				const respuesta = await Userfind(username)
@@ -103,7 +105,33 @@ passport.use(new strategy(
 				} else {
 					return cb(null, false);
 				}
- }))
+ }));
+
+/**
+ * This function is used in conjunction with the `passport.authenticate()` method.  See comments in
+ * `passport.use()` above ^^ for explanation
+ */
+passport.serializeUser(function(user, done) {
+	console.log(`serialice user: ${user.id}`)
+	done(null, user.id);
+});
+
+
+/**
+ * This function is used in conjunction with the `app.use(passport.session())` middleware defined below.
+ * Scroll down and read the comments in the PASSPORT AUTHENTICATION section to learn how this works.
+ * 
+ * In summary, this method is "set" on the passport object and is passed the user ID stored in the `req.session.passport`
+ * object later on.
+ */
+passport.deserializeUser( async function(id, cb) {
+	try {
+		const resultado = await getById(id);
+		cb(null,resultado)
+	} catch (error) {
+		cb(error)
+	}
+}); 
 
 
 // /**
@@ -121,24 +149,26 @@ passport.use(new strategy(
 //  */
 
 
- app.use(
-   session({
-	 key: 'cookie',
-     secret: process.env.SECRET,
-     resave: false,
-     saveUninitialized: true,
-     store: storeCon,
-	 cookie: {
-		maxAge: 1000 * 60 * 60 * 24
-	 }
- })
+app.use( 
+	session({
+	  secret: process.env.SECRET,
+	  resave: false,
+	  saveUninitialized: true,
+	  store: storeCon,
+	  cookie: {
+		 maxAge: 1000 * 60 * 60 * 24 
+	  }})
  ); 
 
  app.use(passport.initialize());
  app.use(passport.session());
  
- 
- 
+
+ app.use((req,res,next)=>{
+	console.log(req.session)
+	console.log(req.user)
+	next()
+ })
  /**
   * -------------- ROUTES ----------------
   */
@@ -160,7 +190,7 @@ passport.use(new strategy(
  });
  
  // Since we are using the passport.authenticate() method, we should be redirected no matter what 
- app.post('/login', passport.authenticate('local', { failureRedirect: '/login-failure', successRedirect: 'login-success' }), (err, req, res, next) => {
+ app.post('/login', passport.authenticate('local', { failureRedirect: '/login-failure', successRedirect: '/login-success' }), (err, req, res, next) => {
 	 if (err) next(err);
  });
  
@@ -202,7 +232,7 @@ passport.use(new strategy(
   * Also, look up what behaviour express session has without a maxage set
   */
  app.get('/protected-route', (req, res, next) => {
-	 
+	
 	 // This is how you check if a user is authenticated and protect a route.  You could turn this into a custom middleware to make it less redundant
 	 if (req.isAuthenticated()) {
 		 res.send('<h1>You are authenticated</h1><p><a href="/logout">Logout and reload</a></p>');
@@ -213,12 +243,15 @@ passport.use(new strategy(
  
  // Visiting this route logs the user out
  app.get('/logout', (req, res, next) => {
-	 req.logout();
-	 res.redirect('/protected-route');
+	 req.logout(req.user, err => {
+	console.log(req.user)
+	 	if(err) return next(err);
+ 	res.redirect("/protected-route");
+	 }); 
  });
  
  app.get('/login-success', (req, res, next) => {
-	 res.send('<p>You successfully logged in. --> <a href="/protected-route">Go to protected route</a></p>');
+	 res.status(200).send('<p>You successfully logged in. --> <a href="/protected-route">Go to protected route</a></p>');
  });
  
  app.get('/login-failure', (req, res, next) => {
